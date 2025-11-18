@@ -1,0 +1,61 @@
+/* src/style.css (Atualizado com Tema Dark) */
+
+/* --- Variáveis de Cor (Tema Padrão: Light) --- */
+:root {
+    --bg-color: #f0f2f5;       /* Fundo principal (cinza claro) */
+    --sidebar-bg: #333a40;     /* Barra esquerda (já é escura) */
+    --main-bg: #ffffff;       /* Fundo do conteúdo (branco) */
+    --widget-bg: #e9ecef;      /* Fundo de widgets (ex: temp) */
+    --border-color: #dee2e6;   /* Cor da borda */
+    --text-color: #212529;     /* Cor do texto principal (escuro) */
+    --text-light: #ffffff;     /* Cor do texto em botões (claro) */
+    --icon-color: #ced4da;     /* Ícones da barra esquerda */
+    
+    /* Cores de Acento e Status */
+    --icon-active: #007bff;     /* Azul principal */
+    --color-red: #dc3545;
+    --color-yellow: #ffc107;
+    --color-green: #28a745;
+}
+
+/* ============================================= */
+/* --- NOVO: Definições do Tema Dark --- */
+/* ============================================= */
+/* Quando o <body> tiver a classe 'dark-theme', estas variáveis 
+   irão sobrepor-se às do :root */
+body.dark-theme {
+    --bg-color: #1a1b1e;       /* Fundo principal (muito escuro) */
+    --main-bg: #242528;       /* Fundo do conteúdo e cartões (escuro) */
+    --widget-bg: #2c2e33;      /* Fundo de widgets (ex: temp, progresso) */
+    --border-color: #3a3b3f;   /* Cor da borda (escura) */
+    --text-color: #e4e6eb;     /* Cor do texto principal (claro) */
+    
+    /* --sidebar-bg não muda, já é escuro e fica ótimo */
+    /* --icon-active não muda, o azul destaca-se bem no escuro */
+    
+    /* Cores de acento podem ser ligeiramente ajustadas se quisermos,
+       mas as cores vivas (vermelho, amarelo) já funcionam bem. */
+}
+
+
+/* --- Reset Básico (Sem alterações) --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    /* Estas linhas vão buscar os valores das variáveis! */
+    /* Ao adicionar 'dark-theme', elas pegam as novas cores. */
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    
+    height: 100vh;
+    overflow: hidden; /* Impede o scroll da página inteira */
+}
+
+a {
+    text-decoration: none;
+}
