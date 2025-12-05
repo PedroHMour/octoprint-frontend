@@ -1,23 +1,29 @@
 <template>
   <aside class="status-bar">
     <div class="logo-container">
-      <img src="/logo.png" alt="Logo Impressora" class="logo-image">
+      <img src="/logo.png" alt="Logo" class="logo-image">
     </div>
 
     <div class="status-widget">
       <label>Temperatura Bico</label>
-      <span>
-        {{ printerState.nozzle.current.toFixed(1) }}°C / 
-        {{ printerState.nozzle.target }}°C
-      </span>
+      <div class="temp-display">
+        <i class="fas fa-thermometer-half temp-icon hot"></i>
+        <span>
+          {{ printerState.nozzle.current?.toFixed(1) ?? '0.0' }}°C 
+          <small>/ {{ printerState.nozzle.target ?? '0' }}°C</small>
+        </span>
+      </div>
     </div>
     
     <div class="status-widget">
       <label>Temperatura Mesa</label>
-      <span>
-        {{ printerState.bed.current.toFixed(1) }}°C / 
-        {{ printerState.bed.target }}°C
-      </span>
+      <div class="temp-display">
+        <i class="fas fa-layer-group temp-icon"></i>
+        <span>
+          {{ printerState.bed.current?.toFixed(1) ?? '0.0' }}°C 
+          <small>/ {{ printerState.bed.target ?? '0' }}°C</small>
+        </span>
+      </div>
     </div>
 
     <div class="status-controls">
@@ -25,6 +31,7 @@
         class="control-icon"
         :class="{ 'active': printerState.isLightOn }"
         @click="toggleLight"
+        title="Luz"
       >
         <i class="fas fa-lightbulb"></i>
       </div>
@@ -32,6 +39,7 @@
       <div 
         class="control-icon"
         :class="{ 'spinning': printerState.status === 'Printing' }"
+        title="Status Ventoinha"
       >
         <i class="fas fa-fan"></i>
       </div>
@@ -40,126 +48,159 @@
 </template>
 
 <script setup lang="ts">
-  // Importa o state e a nova função da API
   import { printerState } from '../store/printerState';
   import { setLight } from '../services/api';
 
   async function toggleLight() {
-    // Define o novo estado como o oposto do estado atual
+    // Inverte o estado atual localmente para feedback instantâneo
     const newState = !printerState.isLightOn;
+    printerState.isLightOn = newState; 
     
     try {
-      // Envia o comando para o backend
       await setLight(newState);
-      // Se o backend confirmar, atualiza o nosso estado local
-      printerState.isLightOn = newState;
     } catch (error) {
-      console.error("Falha ao ligar/desligar a luz:", error);
-      alert("Não foi possível comunicar com a luz da impressora.");
+      console.error("Erro ao mudar luz:", error);
+      // Reverte se der erro
+      printerState.isLightOn = !newState;
     }
   }
 </script>
 
 <style scoped>
+/* Estilos omitidos por brevidade */
 .status-bar {
-  background-color: var(--bg-color);
+  background-color: var(--bg-color); /* Fundo igual ao corpo para separar visualmente */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 15px;
+  height: 100%;
+  border-left: 1px solid var(--border-color);
 }
 
 .logo-container {
   text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  padding-bottom: 10px;
+  padding-bottom: 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .logo-image {
   max-width: 100%;
   height: auto;
-  max-height: 90px;
+  max-height: 60px;
 }
 
 .status-widget {
   background-color: var(--main-bg);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 15px;
   border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .status-widget label {
-  font-size: 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: #6c757d;
   display: block;
-  margin-bottom: 5px;
-}
-
-.status-widget span {
-  font-size: 19px;
+  margin-bottom: 8px;
   font-weight: bold;
 }
+
+.temp-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.temp-display span {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.temp-display small {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: normal;
+}
+
+.temp-icon {
+  font-size: 24px;
+  color: #6c757d;
+  width: 30px;
+  text-align: center;
+}
+.temp-icon.hot { color: #dc3545; }
 
 .status-controls {
   display: flex;
   justify-content: space-around;
-  padding: 10px;
-  margin-top: auto; /* Empurra para o fundo da coluna */
+  padding: 15px;
+  background-color: var(--main-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-top: auto; /* Empurra para o final */
 }
 
 .control-icon {
-  font-size: 24px;
+  font-size: 20px;
   color: var(--text-color);
   cursor: pointer;
-  padding: 10px;
-  width: 50px;
-  height: 50px;
+  width: 45px;
+  height: 45px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  transition: background-color 0.2s, color 0.2s;
+  background-color: var(--widget-bg);
+  transition: all 0.2s;
 }
 
 .control-icon:hover {
-  background-color: var(--widget-bg);
+  transform: scale(1.1);
+  background-color: #3a3f44;
 }
 
-/* --- ESTILOS ADICIONADOS --- */
-
-/* Estilo para a luz "ligada" */
+/* Luz Ligada */
 .control-icon.active {
-  color: #f0e68c; /* Amarelo-claro (Khaki) */
-  background-color: #495057;
+  color: #fff;
+  background-color: #ffc107; /* Amarelo */
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
 }
 
-/* Estilo para a ventoinha "a girar" */
+/* Ventoinha Girando */
+.control-icon.spinning {
+  color: var(--icon-active);
+}
 .control-icon.spinning .fa-fan {
-  animation: spin 2s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
-/* Animação de rotação */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
-@media (max-width: 768px) {
+/* Responsividade Mobile */
+@media (max-width: 900px) {
   .status-bar {
     flex-direction: row;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: space-between;
     border-top: 1px solid var(--border-color);
+    border-left: none;
+    height: auto;
+    padding: 10px;
+    background-color: var(--main-bg);
+  }
+  .logo-container { display: none; }
+  .status-widget { 
+    flex: 1; 
+    margin: 5px; 
+    padding: 10px;
+    min-width: 140px;
   }
   .status-controls {
-    margin-top: 0;
-  }
-  .logo-container {
-    display: none;
+    display: none; /* Esconde controles extras no mobile para economizar espaço */
   }
 }
 </style>

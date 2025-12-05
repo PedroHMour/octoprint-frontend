@@ -1,6 +1,5 @@
 <template>
   <section class="page">
-    
     <div class="main-header">
       <h3>Definições</h3>
     </div>
@@ -8,327 +7,164 @@
     <div class="settings-container">
 
       <div class="settings-card">
-        <h4>Ajustes da Impressão (Em Tempo Real)</h4>
-        
-        <div class="adjust-control">
-          <label for="feedRate">Velocidade (Feed Rate)</label>
-          <div class="control-inputs">
-            <input type="range" id="feedRate" min="50" max="200" v-model.number="feedRate">
-            <input type="number" min="50" max="200" v-model.number="feedRate">
-            <span>%</span>
+        <div class="card-header">
+          <h4>Rede Wi-Fi</h4>
+          <button class="btn-refresh" @click="handleScan" :disabled="isScanning">
+            <i class="fas" :class="isScanning ? 'fa-spinner fa-spin' : 'fa-sync'"></i>
+          </button>
+        </div>
+
+        <div v-if="wifiList.length === 0 && !isScanning" class="no-wifi">
+          <p>Nenhuma rede encontrada.</p>
+          <p class="small">Clique em atualizar para buscar.</p>
+        </div>
+
+        <div class="wifi-list" v-else>
+          <div 
+            v-for="net in wifiList" 
+            :key="net.ssid" 
+            class="wifi-item"
+            :class="{ 'selected': selectedSsid === net.ssid }"
+            @click="selectNetwork(net)"
+          >
+            <div class="wifi-info">
+              <span class="wifi-ssid">{{ net.ssid }}</span>
+              <span class="wifi-meta">
+                <i class="fas fa-signal"></i> {{ net.signal }}% 
+                <i v-if="net.security" class="fas fa-lock lock-icon"></i>
+              </span>
+            </div>
           </div>
         </div>
 
-        <div class="adjust-control">
-          <label for="flowRate">Fluxo (Flow Rate)</label>
-          <div class="control-inputs">
-            <input type="range" id="flowRate" min="80" max="120" v-model.number="flowRate">
-            <input type="number" min="80" max="120" v-model.number="flowRate">
-            <span>%</span>
+        <div class="wifi-connect-form" v-if="selectedSsid">
+          <h5>Conectar a: <strong>{{ selectedSsid }}</strong></h5>
+          <input type="password" v-model="wifiPassword" placeholder="Senha da Rede" class="wifi-input">
+          <div class="form-actions">
+            <button class="btn btn-primary" @click="handleConnect" :disabled="isConnecting">
+              {{ isConnecting ? 'Enviando...' : 'Conectar' }}
+            </button>
+            <button class="btn btn-secondary" @click="selectedSsid = null">Cancelar</button>
           </div>
         </div>
-
-        <div class="adjust-control">
-          <label for="fanSpeed">Ventoinha da Peça</label>
-          <div class="control-inputs">
-            <input type="range" id="fanSpeed" min="0" max="100" v-model.number="fanSpeed">
-            <input type="number" min="0" max="100" v-model.number="fanSpeed">
-            <span>%</span>
-          </div>
-        </div>
-        
-        <button class="apply-button" @click="aplicarAjustes" :disabled="isAdjustLoading">
-          <span v-if="isAdjustLoading">A aplicar...</span>
-          <span v-else>Aplicar Ajustes</span>
-        </button>
       </div>
 
       <div class="settings-card">
         <h4>Geral</h4>
         <div class="setting-item">
-          <label for="printerName">Nome da Impressora</label>
-          <input type="text" id="printerName" v-model="printerName">
+          <label>Nome da Impressora</label>
+          <input type="text" v-model="printerName">
         </div>
       </div>
-
-      <div class="settings-card">
-        <h4>Funcionalidades</h4>
-        <div class="setting-item toggle">
-          <label for="autoLight">Ligar luzes ao imprimir</label>
-          <label class="switch">
-            <input type="checkbox" id="autoLight" v-model="autoLightOnPrint">
-            <span class="slider round"></span>
-          </label>
-        </div>
-        <div class="setting-item toggle">
-          <label for="autoFan">Ligar ventoinha ao imprimir</label>
-          <label class="switch">
-            <input type="checkbox" id="autoFan" v-model="autoFanOnPrint" disabled>
-            <span class="slider round"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-card">
-        <h4>Conexão (Debug)</h4>
-        <div class="setting-item">
-          <label>Porta Serial</label>
-          <input type="text" value="/dev/ttyACM0" readonly>
-        </div>
-        <div class="setting-item">
-          <label>Baudrate</label>
-          <input type="text" value="115200" readonly>
-        </div>
-      </div>
-
+      
       <div class="settings-card">
         <h4>Sistema</h4>
         <div class="setting-item actions">
-          <button class="btn btn-warning">Reiniciar Servidor</button>
           <button class="btn btn-danger">Desligar Raspberry Pi</button>
         </div>
       </div>
+    </div>
 
+    <div v-if="showDisconnectModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+        <h3>Configuração Enviada!</h3>
+        <p>O Raspberry Pi está se conectando à rede <strong>{{ selectedSsid }}</strong>.</p>
+        <div class="alert-box">
+          <p>⚠️ <strong>Atenção:</strong> O Hotspot irá desligar agora.</p>
+          <hr>
+          <p>Conecte seu dispositivo na mesma rede Wi-Fi e acesse:</p>
+          <h2 class="new-address">chromatech.local</h2>
+          <p class="small">ou encontre o novo endereço IP</p>
+        </div>
+        <button class="btn btn-primary full-width" @click="closeModal">Entendi</button>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-// Importar as APIs que vamos usar
-import { 
-  setFeedRate,
-  setFlowRate,
-  setFanSpeed
-} from '../services/api'; 
+import { ref, onMounted } from 'vue';
+import { scanWifi, connectWifi, type WifiNetwork } from '../services/api';
 
-// --- LÓGICA DOS AJUSTES (MOVIDA PARA AQUI) ---
-const feedRate = ref(100);
-const flowRate = ref(100);
-const fanSpeed = ref(100);
-const isAdjustLoading = ref(false);
+const printerName = ref('Chromatech v1.0');
+const wifiList = ref<WifiNetwork[]>([]);
+const isScanning = ref(false);
+const isConnecting = ref(false);
+const selectedSsid = ref<string | null>(null);
+const wifiPassword = ref('');
+const showDisconnectModal = ref(false);
 
-async function aplicarAjustes() {
-  isAdjustLoading.value = true;
-  console.log('Aplicando Ajustes:', {
-    feed: feedRate.value,
-    flow: flowRate.value,
-    fan: fanSpeed.value
-  });
-  
+async function handleScan() {
+  isScanning.value = true;
+  selectedSsid.value = null;
   try {
-    // Envia os comandos para o backend, um de cada vez
-    await Promise.all([
-      setFeedRate(feedRate.value),
-      setFlowRate(flowRate.value),
-      setFanSpeed(fanSpeed.value)
-    ]);
-    
-    alert('Ajustes aplicados com sucesso!');
-
-  } catch (error) {
-    console.error("Erro ao aplicar ajustes:", error);
-    alert("Erro ao aplicar um ou mais ajustes.");
-  } finally {
-    isAdjustLoading.value = false;
-  }
+    wifiList.value = await scanWifi();
+  } catch (error) { console.error(error); } 
+  finally { isScanning.value = false; }
 }
 
-// --- Lógica das Definições (Existente) ---
-const printerName = ref('Chromatech v1.0');
-const autoLightOnPrint = ref(true);
-const autoFanOnPrint = ref(true);
+function selectNetwork(net: WifiNetwork) {
+  selectedSsid.value = net.ssid;
+  wifiPassword.value = '';
+}
 
+async function handleConnect() {
+  if (!selectedSsid.value) return;
+  isConnecting.value = true;
+  
+  // Tenta conectar. Se der erro de rede, consideramos sucesso (pois o hotspot caiu)
+  connectWifi(selectedSsid.value, wifiPassword.value)
+    .then(() => { showDisconnectModal.value = true; })
+    .catch((e) => {
+      console.log("Rede caiu (Sucesso):", e);
+      showDisconnectModal.value = true;
+    })
+    .finally(() => { isConnecting.value = false; });
+}
+
+function closeModal() {
+  showDisconnectModal.value = false;
+  selectedSsid.value = null;
+  wifiPassword.value = '';
+}
+
+onMounted(() => { handleScan(); });
 </script>
 
 <style scoped>
-.main-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-}
+.main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+.settings-container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.settings-card { background-color: var(--main-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+.settings-card h4 { font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.btn-refresh { background: none; border: none; color: var(--icon-active); font-size: 18px; cursor: pointer; }
+.no-wifi { padding: 20px; text-align: center; color: #6c757d; font-style: italic; }
+.wifi-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 15px; }
+.wifi-item { padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s; }
+.wifi-item:hover { background-color: var(--widget-bg); }
+.wifi-item.selected { background-color: var(--icon-active); color: #fff; }
+.wifi-item.selected .wifi-meta { color: #eee; }
+.wifi-info { display: flex; justify-content: space-between; align-items: center; }
+.wifi-ssid { font-weight: bold; }
+.wifi-meta { font-size: 12px; color: #6c757d; display: flex; gap: 8px; align-items: center; }
+.wifi-connect-form { background-color: var(--widget-bg); padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color); }
+.wifi-input { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 10px; background-color: var(--main-bg); color: var(--text-color); }
+.form-actions { display: flex; gap: 10px; }
+.btn { padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; }
+.btn-primary { background-color: #28a745; }
+.btn-secondary { background-color: #6c757d; }
+.btn-danger { background-color: #dc3545; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.setting-item { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+.setting-item label { font-weight: bold; color: #6c757d; }
+.setting-item input { width: 100%; padding: 10px; background-color: var(--widget-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; }
 
-.settings-container {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.settings-card {
-  background-color: var(--main-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.settings-card h4 {
-  font-size: 18px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-}
-
-/* --- Estilos dos Itens de Definição (Existentes) --- */
-.setting-item {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 15px;
-}
-.setting-item label {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #6c757d; /* Cinza fixo, fica bem em ambos os temas */
-}
-.setting-item input[type="text"] {
-  padding: 10px;
-  font-size: 16px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background-color: var(--widget-bg); /* Fundo de widget */
-  color: var(--text-color); /* Cor do texto do tema */
-}
-.setting-item input[readonly] {
-  cursor: not-allowed;
-}
-.setting-item.actions {
-  flex-direction: row;
-  gap: 10px;
-}
-.btn {
-  padding: 10px 15px;
-  font-size: 14px;
-  font-weight: bold;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  color: #fff;
-}
-.btn-warning { background-color: var(--color-yellow); color: #212529; }
-.btn-danger { background-color: var(--color-red); }
-
-
-/* --- ESTILOS MOVIDOS DO 'AdjustPage' --- */
-.adjust-control label {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #6c757d;
-}
-.control-inputs {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.control-inputs input[type="range"] {
-  flex-grow: 1;
-  cursor: pointer;
-  height: 8px;
-  border-radius: 4px;
-  accent-color: var(--icon-active); /* Usa a cor de acento principal */
-}
-.control-inputs input[type="number"] {
-  width: 70px;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background-color: var(--widget-bg);
-  color: var(--text-color);
-  font-size: 16px;
-  text-align: center;
-}
-.control-inputs span {
-  font-weight: bold;
-}
-.apply-button {
-  width: 100%;
-  padding: 12px 25px;
-  font-size: 16px;
-  font-weight: bold;
-  color: #fff;
-  background-color: var(--icon-active);
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 10px;
-}
-.apply-button:hover {
-  background-color: #0056b3;
-}
-.apply-button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-input[type=number] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
-  margin: 0;
-}
-
-
-/* --- Estilos do Toggle Switch (Existentes) --- */
-.setting-item.toggle {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-.setting-item.toggle label {
-  margin-bottom: 0;
-}
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-}
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-}
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-}
-input:checked + .slider {
-  background-color: var(--icon-active);
-}
-input:focus + .slider {
-  box-shadow: 0 0 1px var(--icon-active);
-}
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
-input:disabled + .slider {
-  background-color: #e9ecef;
-  cursor: not-allowed;
-}
-.slider.round { border-radius: 34px; }
-.slider.round:before { border-radius: 50%; }
+/* MODAL */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.modal-content { background: var(--main-bg); padding: 30px; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.success-icon { color: #28a745; font-size: 60px; margin-bottom: 20px; }
+.alert-box { background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; padding: 20px; border-radius: 12px; margin: 25px 0; text-align: left; }
+.new-address { text-align: center; color: var(--icon-active); margin: 10px 0; }
+.full-width { width: 100%; padding: 15px; font-size: 18px; }
 </style>

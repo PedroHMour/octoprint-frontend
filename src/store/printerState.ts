@@ -3,71 +3,49 @@
 import { reactive } from 'vue';
 import { getStatus } from '../services/api';
 
-// --- A ESTRUTURA DOS DADOS ---
-interface ITemperatureState {
-  current: number;
-  target: number;
-}
-
-// NOVA interface para o progresso
-interface IProgressState {
-  completion: number;  // Percentagem (0-100)
-  printTimeLeft: number; // Em segundos
-}
-
+// Define a estrutura dos dados que esperamos receber
 interface IPrinterState {
-  nozzle: ITemperatureState;
-  bed: ITemperatureState;
+  // CORREÇÃO: Permite 'null' nas temperaturas
+  nozzle: { current: number | null; target: number | null };
+  bed: { current: number | null; target: number | null };
   status: 'Offline' | 'Operacional' | 'Printing' | 'Paused';
   isLightOn: boolean;
-  progress: IProgressState; // <-- ADICIONADO
+  progress: { completion: number | null; printTimeLeft: number | null };
 }
 
-// --- O STORE ---
+// Cria o estado reativo que será usado por toda a aplicação
 export const printerState = reactive<IPrinterState>({
-  nozzle: {
-    current: 0.0,
-    target: 0,
-  },
-  bed: {
-    current: 0.0,
-    target: 0,
-  },
+  nozzle: { current: 0, target: 0 },
+  bed: { current: 0, target: 0 },
   status: 'Offline',
   isLightOn: false,
-  // ADICIONADO (valores iniciais)
-  progress: {
-    completion: 0,
-    printTimeLeft: 0,
-  },
+  progress: { completion: 0, printTimeLeft: 0 },
 });
 
-// --- O "POLLER" ---
+// Função que roda em loop infinito para atualizar os dados
 async function fetchStatusLoop() {
   try {
-    // A nossa API '/api/status' agora envia tudo de uma vez
     const data = await getStatus();
     
-    // Atualiza todos os dados
+    // Atualiza o estado com os dados novos
     printerState.nozzle = data.nozzle;
     printerState.bed = data.bed;
     printerState.status = data.status;
-    printerState.progress = data.progress; // <-- ADICIONADO
+    
+    // Garante que os dados de progresso sejam atualizados
+    printerState.progress.completion = data.progress.completion;
+    printerState.progress.printTimeLeft = data.progress.printTimeLeft;
     
   } catch (error) {
-    console.error('Erro ao buscar status do backend:', error);
-    // Zera tudo se falhar
-    printerState.status = 'Offline';
-    printerState.nozzle.current = 0;
-    printerState.bed.current = 0;
-    printerState.isLightOn = false;
-    printerState.progress.completion = 0;
-    printerState.progress.printTimeLeft = 0;
+    // A falha de rede/API é logada, mas o crash do layout é resolvido abaixo.
+    console.error('ERRO DE POLLING/RENDERIZAÇÃO:', error); 
   }
   
+  // Agenda a próxima atualização para daqui a 2 segundos
   setTimeout(fetchStatusLoop, 2000);
 }
 
+// Inicia o ciclo de atualizações (chamado no main.ts)
 export function startStatusPolling() {
   fetchStatusLoop();
 }

@@ -1,13 +1,12 @@
-// src/main.ts
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
 import router from './router'
 
-// 1. IMPORTAR A NOVA FUNÇÃO
+// Importa a função que busca dados do backend periodicamente
 import { startStatusPolling } from './store/printerState'
 
-// 2. INICIAR O POLLING (em vez do simulador)
+// Inicia o ciclo de vida (busca temperaturas a cada 2s)
 startStatusPolling();
 
 const app = createApp(App)

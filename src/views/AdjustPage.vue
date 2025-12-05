@@ -69,6 +69,8 @@ import { applyMix } from '../services/api';
 
 // --- LÓGICA DOS AJUSTES (Feed, Flow) FOI REMOVIDA ---
 
+// Lógica apenas para a mistura de filamento permanece aqui
+
 // --- ESTADO: MISTURA ---
 const extrusor1 = ref(34);
 const extrusor2 = ref(33);
