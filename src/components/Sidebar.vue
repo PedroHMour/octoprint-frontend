@@ -10,6 +10,11 @@
       <i class="fas fa-folder"></i> 
       <span>Files</span>
     </router-link>
+
+    <router-link to="/mixing" class="nav-icon" title="Mistura">
+      <i class="fas fa-palette"></i> 
+      <span>Mix</span>
+    </router-link>
     
     <router-link to="/adjust" class="nav-icon" title="Ajustes">
       <i class="fas fa-sliders-h"></i> 
@@ -25,12 +30,12 @@
 </template>
 
 <script setup lang="ts">
-  // O Vue Router adiciona automaticamente a classe 'active' ao link atual
+  // O Vue Router cuida da classe 'active'
 </script>
 
 <style scoped>
 .sidebar {
-  background-color: #333a40; /* Fundo escuro fixo para a sidebar */
+  background-color: #333a40;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,7 +44,7 @@
 }
 
 .nav-icon {
-  color: #ced4da; /* Cor dos ícones inativos */
+  color: #ced4da;
   text-decoration: none;
   display: flex;
   flex-direction: column;
@@ -48,7 +53,7 @@
   width: 100%;
   font-size: 12px;
   transition: background-color 0.2s, color 0.2s;
-  border-left: 4px solid transparent; /* Indicador lateral */
+  border-left: 4px solid transparent;
 }
 
 .nav-icon i {
@@ -61,14 +66,12 @@
   color: #fff;
 }
 
-/* Classe automática do Vue Router quando o link está ativo */
 .nav-icon.active {
-  color: var(--icon-active); /* Azul do tema */
+  color: var(--icon-active, #007bff);
   background-color: #2a2f34;
-  border-left-color: var(--icon-active);
+  border-left-color: var(--icon-active, #007bff);
 }
 
-/* Responsividade (Mobile) */
 @media (max-width: 900px) {
   .sidebar {
     padding-top: 0;
@@ -76,7 +79,7 @@
     justify-content: space-around;
     height: auto;
     width: 100%;
-    background-color: var(--main-bg); /* No mobile, funde com o fundo */
+    background-color: var(--main-bg);
     border-top: 1px solid var(--border-color);
   }
 
@@ -84,16 +87,14 @@
     color: var(--text-color);
     padding: 15px;
     border-left: none;
-    border-bottom: 4px solid transparent; /* Indicador passa para baixo */
+    border-bottom: 4px solid transparent;
   }
 
-  .nav-icon span {
-    display: none; /* Esconde texto no mobile para economizar espaço */
-  }
+  .nav-icon span { display: none; }
 
   .nav-icon.active {
     background-color: transparent;
-    border-bottom-color: var(--icon-active);
+    border-bottom-color: var(--icon-active, #007bff);
   }
 }
 </style>

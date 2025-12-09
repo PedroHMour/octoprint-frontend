@@ -1,15 +1,25 @@
+// src/main.ts
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
 import router from './router'
-
-// Importa a função que busca dados do backend periodicamente
 import { startStatusPolling } from './store/printerState'
 
-// Inicia o ciclo de vida (busca temperaturas a cada 2s)
-startStatusPolling();
+// Log de início para debug (aparecerá no console do navegador se o JS carregar)
+console.log('Chromatech: Inicializando aplicação...');
 
-const app = createApp(App)
+try {
+  // Inicia o ciclo de vida (busca temperaturas a cada 2s)
+  startStatusPolling();
 
-app.use(router)
-app.mount('#app')
+  const app = createApp(App)
+
+  app.use(router)
+
+  // Monta a aplicação
+  app.mount('#app')
+  
+  console.log('Chromatech: Aplicação montada com sucesso.');
+} catch (error) {
+  console.error('Chromatech: Erro fatal ao montar a aplicação:', error);
+}

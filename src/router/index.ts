@@ -1,18 +1,15 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// Importa as páginas que criamos
+// Importa as páginas
 import HomePage from '../views/HomePage.vue'
 import FilesPage from '../views/FilesPage.vue'
 import SettingsPage from '../views/SettingsPage.vue'
 import AdjustPage from '../views/AdjustPage.vue'
+import MixingPage from '../views/MixingPage.vue' // <--- NOVO
 
 const router = createRouter({
-  // Usa o modo Hash (#/) para funcionar fácil sem configurar servidor
   history: createWebHashHistory(),
-  
-  // Define a classe CSS para o link ativo (usado na Sidebar)
   linkActiveClass: 'active',
-  
   routes: [
     { 
       path: '/', 
@@ -25,14 +22,19 @@ const router = createRouter({
       component: FilesPage 
     },
     { 
-      path: '/settings', 
-      name: 'Settings',
-      component: SettingsPage 
+      path: '/mixing',  // <--- NOVO
+      name: 'Mixing',
+      component: MixingPage 
     },
     { 
       path: '/adjust', 
       name: 'Adjust',
       component: AdjustPage 
+    },
+    { 
+      path: '/settings', 
+      name: 'Settings',
+      component: SettingsPage 
     },
   ]
 })
