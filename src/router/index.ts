@@ -4,7 +4,6 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import HomePage from '../views/HomePage.vue'
 import FilesPage from '../views/FilesPage.vue'
 import SettingsPage from '../views/SettingsPage.vue'
-import AdjustPage from '../views/AdjustPage.vue'
 import MixingPage from '../views/MixingPage.vue' // <--- NOVO
 
 const router = createRouter({
@@ -26,11 +25,7 @@ const router = createRouter({
       name: 'Mixing',
       component: MixingPage 
     },
-    { 
-      path: '/adjust', 
-      name: 'Adjust',
-      component: AdjustPage 
-    },
+    
     { 
       path: '/settings', 
       name: 'Settings',

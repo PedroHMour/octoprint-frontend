@@ -5,7 +5,7 @@ const BASE_URL = '/api';
 export interface WifiNetwork {
   ssid: string;
   signal: number;
-  security: string;
+  security: string | boolean; // Atualizado para aceitar o retorno do novo backend
 }
 
 // --- Status e Conexão ---
@@ -129,17 +129,32 @@ export async function applyMix(mix: { ext1: number, ext2: number, ext3: number }
   return sendGcode(command);
 }
 
-// --- Wifi ---
+// --- SISTEMA E WIFI (ATUALIZADO) ---
+
 export async function scanWifi() {
-  const response = await fetch(`${BASE_URL}/wifi/scan`);
+  // Rota atualizada para bater com o novo backend system/wifi
+  const response = await fetch(`${BASE_URL}/system/wifi/scan`);
+  if (!response.ok) { throw new Error('Erro ao escanear redes'); }
   return response.json();
 }
+
 export async function connectWifi(ssid: string, password?: string) {
-  const response = await fetch(`${BASE_URL}/wifi/connect`, {
+  // Rota atualizada para bater com o novo backend system/wifi
+  const response = await fetch(`${BASE_URL}/system/wifi/connect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ssid, password }), 
   });
+  // Nota: Se a conexão for bem sucedida, o IP pode mudar ou o hotspot cair,
+  // então erros de network aqui podem ser falsos positivos (sucesso real).
+  return response.json();
+}
+
+export async function shutdownSystem() {
+  const response = await fetch(`${BASE_URL}/system/shutdown`, {
+    method: 'POST'
+  });
+  if (!response.ok) { throw new Error('Erro ao desligar sistema'); }
   return response.json();
 }
 

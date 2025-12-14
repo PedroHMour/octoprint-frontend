@@ -1,56 +1,40 @@
 <template>
   <section class="page">
-    <div class="main-header">
-      <h3>Ficheiros G-Code</h3>
-    </div>
+    <h2>📂 Arquivos G-Code</h2>
     
-    <div class="content-container">
-      <div class="upload-zone" @click="triggerInput">
-        <i class="fas fa-cloud-upload-alt"></i>
-        <p>Clique aqui para carregar um novo G-Code</p>
-        <input 
-          type="file" 
-          ref="fileInput" 
-          @change="handleUpload" 
-          hidden 
-          accept=".gcode,.gco"
-        >
-      </div>
+    <div class="actions">
+      <button @click="reload" class="btn-refresh" title="Atualizar Lista">
+        <i class="fas fa-sync"></i>
+      </button>
+      
+      <input type="file" ref="inp" style="display:none" @change="doUpload" accept=".gcode,.gco,.g">
+      
+      <button class="btn-up" @click="inp?.click()">
+        <i class="fas fa-cloud-upload-alt"></i> Upload Novo
+      </button>
+    </div>
 
-      <div class="file-list-container">
-        <div v-if="isLoading" class="loading">
-          <i class="fas fa-spinner fa-spin"></i> Carregando lista...
+    <div v-if="loading" class="loading">Carregando lista...</div>
+    <div v-else-if="files.length === 0" class="empty">Nenhum arquivo encontrado.</div>
+    
+    <div class="list">
+      <div v-for="f in files" :key="f.path" class="file">
+        <div class="info">
+          <div class="file-icon"><i class="fas fa-file-code"></i></div>
+          <div>
+            <strong>{{ f.name }}</strong><br>
+            <small>{{ formatSize(f.size) }}</small>
+          </div>
         </div>
         
-        <div v-else-if="files.length === 0" class="empty">
-          Nenhum arquivo encontrado.
-        </div>
-
-        <div v-else class="file-list">
-          <div v-for="file in files" :key="file.path" class="file-item">
-            <div class="file-info">
-              <span class="file-name">{{ file.name }}</span>
-              <span class="file-size">{{ formatSize(file.size) }}</span>
-            </div>
-            
-            <div class="file-actions">
-              <button 
-                class="btn-icon btn-print" 
-                @click="handlePrint(file.path)" 
-                title="Imprimir"
-              >
-                <i class="fas fa-play"></i>
-              </button>
-              
-              <button 
-                class="btn-icon btn-delete" 
-                @click="handleDelete(file.path)" 
-                title="Apagar"
-              >
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
+        <div class="btns">
+          <button class="btn-magic" @click="paintPrint(f.name)" title="Aplicar Cores e Imprimir">
+            <i class="fas fa-play"></i> IMPRIMIR
+          </button>
+          
+          <button class="btn-del" @click="del(f.name)" title="Apagar">
+            <i class="fas fa-trash"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -59,150 +43,93 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { getFiles, uploadFile, printFile, deleteFile } from '../services/api';
+import { getFiles, uploadFile, deleteFile, paintAndPrint } from '../services/api';
 
-// Estado
-const files = ref<any[]>([]);
-const isLoading = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
+interface GcodeFile { name: string; path: string; size: number; }
 
-// Carregar arquivos ao iniciar
-async function loadFiles() {
-  isLoading.value = true;
+const files = ref<GcodeFile[]>([]);
+const loading = ref(false);
+const inp = ref<HTMLInputElement | null>(null);
+
+async function reload() {
+  loading.value = true;
   try {
-    // Busca a lista do backend
-    files.value = await getFiles();
-  } catch (error) {
-    console.error("Erro ao listar arquivos:", error);
-  } finally {
-    isLoading.value = false;
-  }
+    const d = await getFiles();
+    const list = Array.isArray(d) ? d : (d.files || []);
+    files.value = list.filter((x: any) => 
+      x.type === 'machinecode' || x.name.endsWith('.gcode')
+    );
+  } catch(e) { console.error(e); } 
+  finally { loading.value = false; }
 }
 
-// Abrir seletor de arquivos
-function triggerInput() {
-  fileInput.value?.click();
-}
-
-// Upload
-async function handleUpload(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    const file = target.files[0];
-    
-    // CORREÇÃO: Garante que 'file' existe para o TypeScript parar de reclamar
-    if (!file) return;
-
-    // Confirmação simples ou feedback de upload
-    if (!confirm(`Carregar o arquivo "${file.name}"?`)) {
-      target.value = ''; // Limpa seleção
-      return;
-    }
-
-    try {
-      await uploadFile(file);
-      alert('Arquivo enviado com sucesso!');
-      loadFiles(); // Recarrega a lista
-    } catch (error: any) {
-      alert('Erro no upload: ' + error.message);
-    } finally {
-      target.value = ''; // Limpa seleção para permitir enviar o mesmo arquivo de novo
+async function doUpload(e: Event) {
+  const t = e.target as HTMLInputElement;
+  if(t.files && t.files[0]) {
+    const file = t.files[0];
+    try { 
+      const btn = document.querySelector('.btn-up');
+      if(btn) btn.textContent = "Enviando...";
+      await uploadFile(file); 
+      alert("Sucesso!"); reload(); 
+    } catch(err: any) { alert("Erro: " + err.message); } 
+    finally {
+      if(inp.value) inp.value.value = '';
+      const btn = document.querySelector('.btn-up');
+      if(btn) btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload Novo';
     }
   }
 }
 
-// Imprimir
-async function handlePrint(path: string) {
-  if (confirm("Deseja iniciar a impressão deste arquivo agora?")) {
-    try {
-      await printFile(path);
-      alert("Impressão iniciada!");
-    } catch (error: any) {
-      alert("Erro ao iniciar impressão: " + error.message);
-    }
+async function del(n: string) {
+  if(confirm(`Apagar ${n}?`)) {
+    try { await deleteFile(n); reload(); } catch(e) {}
   }
 }
 
-// Deletar
-async function handleDelete(path: string) {
-  if (confirm("Tem certeza que deseja apagar este arquivo?")) {
-    try {
-      await deleteFile(path);
-      loadFiles(); // Recarrega a lista
-    } catch (error: any) {
-      alert("Erro ao apagar: " + error.message);
-    }
+async function paintPrint(n: string) {
+  if(!confirm(`Iniciar impressão de ${n}?\n(As cores do estúdio serão aplicadas)`)) return;
+  
+  const map: Record<number, string> = {};
+  for(let i=0; i<19; i++) {
+    const c = localStorage.getItem(`extruder_mix_${i}`);
+    if(c) map[i] = c;
   }
+  
+  try {
+    const res = await paintAndPrint(n, map);
+    alert("✅ " + res.msg);
+  } catch(e: any) { alert("Erro: " + e.message); }
 }
 
-// Formatação de bytes para KB/MB
 function formatSize(bytes: number) {
-  if (bytes === 0) return '0 B';
+  if(bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-onMounted(() => {
-  loadFiles();
-});
+onMounted(reload);
 </script>
 
 <style scoped>
-.main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-.content-container { max-width: 800px; margin: 0 auto; }
+.page { padding: 15px; color: white; }
+.actions { display: flex; gap: 10px; margin-bottom: 20px; }
+.btn-up { background: #007bff; color: white; border: none; padding: 12px; flex: 1; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-refresh { background: #444; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 50px; }
 
-/* Upload Zone */
-.upload-zone { 
-  border: 2px dashed var(--border-color); 
-  padding: 30px; 
-  text-align: center; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  margin-bottom: 25px; 
-  color: #6c757d;
-  transition: all 0.2s;
-  background-color: var(--widget-bg);
-}
-.upload-zone:hover { 
-  border-color: var(--icon-active); 
-  color: var(--icon-active); 
-  background-color: rgba(0, 123, 255, 0.05);
-}
-.upload-zone i { font-size: 40px; margin-bottom: 10px; display: block; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.file { background: #2c3e50; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #444; }
+.info { display: flex; align-items: center; gap: 15px; flex-grow: 1; overflow: hidden; }
+.file-icon { font-size: 1.5rem; color: #FFD700; flex-shrink: 0; }
 
-/* Lista */
-.loading, .empty { text-align: center; padding: 20px; color: #6c757d; }
-.file-list { display: flex; flex-direction: column; gap: 10px; }
-.file-item { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  background: var(--main-bg); 
-  padding: 15px; 
-  border: 1px solid var(--border-color); 
-  border-radius: 8px; 
-}
-.file-info { display: flex; flex-direction  : column; }
-.file-name { font-weight: bold; font-size: 16px; color: var(--text-color); }
-.file-size { font-size: 12px; color: #6c757d; margin-top: 4px; }
+.btns { display: flex; gap: 8px; flex-shrink: 0; }
+button { border: none; padding: 0 15px; height: 42px; border-radius: 6px; cursor: pointer; color: white; font-size: 1rem; display: flex; align-items: center; gap: 8px; transition: 0.1s; }
+button:active { transform: scale(0.95); }
 
-.file-actions { display: flex; gap: 10px; }
-.btn-icon { 
-  width: 40px; 
-  height: 40px; 
-  border: none; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  color: #fff; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center;
-  font-size: 16px;
-  transition: opacity 0.2s;
-}
-.btn-icon:hover { opacity: 0.8; }
-.btn-print { background-color: #28a745; }
-.btn-delete { background-color: #dc3545; }
+.btn-magic { background: #27ae60; font-weight: bold; flex-grow: 1; } /* Verde principal */
+.btn-del { background: #dc3545; width: 42px; padding: 0; justify-content: center; }
+
+.loading, .empty { text-align: center; color: #888; margin-top: 20px; font-style: italic; }
 </style>

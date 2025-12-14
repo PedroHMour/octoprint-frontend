@@ -15,11 +15,6 @@
       <i class="fas fa-palette"></i> 
       <span>Mix</span>
     </router-link>
-    
-    <router-link to="/adjust" class="nav-icon" title="Ajustes">
-      <i class="fas fa-sliders-h"></i> 
-      <span>Ajustes</span>
-    </router-link>
 
     <router-link to="/settings" class="nav-icon" title="Configurações">
       <i class="fas fa-cog"></i> 
