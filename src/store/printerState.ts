@@ -1,6 +1,7 @@
 // src/store/printerState.ts
 import { reactive } from 'vue';
-import { getStatus } from '../services/api';
+// ADICIONADO: Importamos getSensorStatus para buscar o dado novo
+import { getStatus, getSensorStatus } from '../services/api';
 
 // --- Tipos ---
 export type PrinterStatus = 
@@ -18,7 +19,12 @@ interface IPrinterState {
   status: PrinterStatus;
   isLightOn: boolean;
   
-  // ADICIONADO: Suporte para as informações do Job que o backend manda
+  // ADICIONADO: Estado do Sensor de Filamento
+  sensor: {
+    filament: boolean; // true = OK, false = SEM FILAMENTO
+  };
+
+  // Suporte para as informações do Job
   job: {
     filename: string | null;
     estimatedTime: number | null;
@@ -38,6 +44,11 @@ export const printerState = reactive<IPrinterState>({
   status: 'Offline',
   isLightOn: false,
   
+  // ADICIONADO: Inicializa como true para não mostrar erro no boot
+  sensor: {
+    filament: true 
+  },
+
   job: {
     filename: null,
     estimatedTime: null
@@ -53,46 +64,49 @@ export const printerState = reactive<IPrinterState>({
 // --- Loop de Atualização ---
 async function fetchStatusLoop() {
   try {
+    // 1. Busca Status Geral
     const data = await getStatus();
 
-    // 1. Atualiza Printer (Status e Temperaturas)
+    // Atualiza Printer (Status e Temperaturas)
     if (data.printer) {
       if (data.printer.status) {
         printerState.status = data.printer.status;
       }
       
-      // Verifica se existe o objeto nozzle antes de tentar ler
       if (data.printer.nozzle) {
         printerState.nozzle.current = data.printer.nozzle.actual || 0;
         printerState.nozzle.target = data.printer.nozzle.target || 0;
       }
       
-      // Verifica se existe o objeto bed
       if (data.printer.bed) {
         printerState.bed.current = data.printer.bed.actual || 0;
         printerState.bed.target = data.printer.bed.target || 0;
       }
     }
 
-    // 2. Atualiza Job (Nome do arquivo)
+    // Atualiza Job
     if (data.job) {
-      // O backend envia { job: { file: { name: "..." } } }
       const fileData = data.job.file || {};
       printerState.job.filename = fileData.name || null;
       printerState.job.estimatedTime = data.job.estimatedPrintTime || null;
     }
 
-    // 3. Atualiza Progresso
+    // Atualiza Progresso
     if (data.progress) {
       printerState.progress.completion = data.progress.completion || 0;
       printerState.progress.printTime = data.progress.printTime || 0;
       printerState.progress.printTimeLeft = data.progress.printTimeLeft || 0;
     }
 
+    // ADICIONADO: 2. Busca Status do Sensor
+    // Chama a função que criamos no api.ts para ler o endpoint /api/sensor/status
+    const sensorData = await getSensorStatus();
+    if (sensorData && typeof sensorData.filament !== 'undefined') {
+      printerState.sensor.filament = sensorData.filament;
+    }
+
   } catch (error) {
-    // Se der erro de rede, não faz nada para não piscar a tela, 
-    // ou pode setar status = 'Offline' se preferir.
-    // console.error(error); 
+    // Erros de rede são ignorados para não travar o loop
   }
   
   // Chama novamente em 2 segundos

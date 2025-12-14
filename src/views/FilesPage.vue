@@ -21,10 +21,19 @@
       <div v-for="f in files" :key="f.path" class="file">
         <div class="info">
           <div class="file-icon"><i class="fas fa-file-code"></i></div>
-          <div>
-            <strong>{{ f.name }}</strong><br>
-            <small>{{ formatSize(f.size) }}</small>
+          
+          <div class="file-details">
+            <strong>{{ f.name }}</strong>
+            <div class="meta">
+              <span class="meta-item">
+                <i class="fas fa-weight-hanging"></i> {{ formatSize(f.size) }}
+              </span>
+              <span class="meta-item" v-if="f.date">
+                <i class="fas fa-clock"></i> {{ formatDate(f.date) }}
+              </span>
+            </div>
           </div>
+
         </div>
         
         <div class="btns">
@@ -45,7 +54,8 @@
 import { ref, onMounted } from 'vue';
 import { getFiles, uploadFile, deleteFile, paintAndPrint } from '../services/api';
 
-interface GcodeFile { name: string; path: string; size: number; }
+// Adicionado o campo opcional 'date'
+interface GcodeFile { name: string; path: string; size: number; date?: number; }
 
 const files = ref<GcodeFile[]>([]);
 const loading = ref(false);
@@ -56,9 +66,20 @@ async function reload() {
   try {
     const d = await getFiles();
     const list = Array.isArray(d) ? d : (d.files || []);
-    files.value = list.filter((x: any) => 
+    
+    // 1. Filtra apenas G-Codes
+    const filtered = list.filter((x: any) => 
       x.type === 'machinecode' || x.name.endsWith('.gcode')
     );
+    
+    // 2. Ordena por Data (Mais recente primeiro)
+    // Se a API não mandar data, assume 0 para ir para o fim da lista
+    files.value = filtered.sort((a: any, b: any) => {
+      const dateA = a.date || 0;
+      const dateB = b.date || 0;
+      return dateB - dateA; // Ordem decrescente
+    });
+
   } catch(e) { console.error(e); } 
   finally { loading.value = false; }
 }
@@ -110,6 +131,18 @@ function formatSize(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+// Nova função para formatar a data vinda do backend (timestamp unix)
+function formatDate(timestamp: number) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp * 1000); 
+  return date.toLocaleDateString('pt-BR', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+}
+
 onMounted(reload);
 </script>
 
@@ -121,8 +154,15 @@ onMounted(reload);
 
 .list { display: flex; flex-direction: column; gap: 10px; }
 .file { background: #2c3e50; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #444; }
+
+/* Ajustes visuais para os detalhes do arquivo */
 .info { display: flex; align-items: center; gap: 15px; flex-grow: 1; overflow: hidden; }
-.file-icon { font-size: 1.5rem; color: #FFD700; flex-shrink: 0; }
+.file-icon { font-size: 1.8rem; color: #FFD700; flex-shrink: 0; }
+.file-details { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+
+/* Estilo dos metadados (tamanho e data) */
+.meta { display: flex; gap: 15px; font-size: 0.85rem; color: #bbb; }
+.meta-item { display: flex; align-items: center; gap: 5px; }
 
 .btns { display: flex; gap: 8px; flex-shrink: 0; }
 button { border: none; padding: 0 15px; height: 42px; border-radius: 6px; cursor: pointer; color: white; font-size: 1rem; display: flex; align-items: center; gap: 8px; transition: 0.1s; }
@@ -132,4 +172,9 @@ button:active { transform: scale(0.95); }
 .btn-del { background: #dc3545; width: 42px; padding: 0; justify-content: center; }
 
 .loading, .empty { text-align: center; color: #888; margin-top: 20px; font-style: italic; }
+
+/* Responsividade para ecrãs pequenos */
+@media (max-width: 600px) {
+  .meta { flex-direction: column; gap: 2px; }
+}
 </style>
